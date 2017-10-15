@@ -1,13 +1,15 @@
 package rwatsh.demo.review.service;
 
 import io.dropwizard.Application;
+import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import io.federecio.dropwizard.swagger.SwaggerBundle;
+import io.federecio.dropwizard.swagger.SwaggerBundleConfiguration;
 import lombok.extern.java.Log;
 import rwatsh.demo.db.api.DBClient;
 import rwatsh.demo.review.service.health.DBHealthCheck;
 import rwatsh.demo.review.service.rest.ProductResource;
 import rwatsh.demo.review.service.rest.UserResource;
-import rwatsh.demo.utils.EndpointUtils;
 
 /**
  * @author rwatsh on 10/9/17.
@@ -18,6 +20,16 @@ public class ReviewEngineApplication extends Application<ReviewEngineConfigurati
 
     public static void main(String[] args) throws Exception {
         new ReviewEngineApplication().run(args);
+    }
+
+    @Override
+    public void initialize(Bootstrap<ReviewEngineConfiguration> bootstrap) {
+        bootstrap.addBundle(new SwaggerBundle<ReviewEngineConfiguration>() {
+            @Override
+            protected SwaggerBundleConfiguration getSwaggerBundleConfiguration(ReviewEngineConfiguration configuration) {
+                return configuration.swaggerBundleConfiguration;
+            }
+        });
     }
 
 
@@ -38,7 +50,7 @@ public class ReviewEngineApplication extends Application<ReviewEngineConfigurati
         /*
          * Setup jersey environment.
          */
-        environment.jersey().setUrlPattern(EndpointUtils.ENDPOINT_ROOT + "/*");
+        //environment.jersey().setUrlPattern(EndpointUtils.ENDPOINT_ROOT + "/*");
         environment.jersey().register(userResource);
         environment.jersey().register(productResource);
         log.info("Done with all initializations for review engine service");

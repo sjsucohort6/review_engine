@@ -34,11 +34,6 @@
             <artifactId>utils</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!--<dependency>
-            <groupId>io.federecio</groupId>
-            <artifactId>dropwizard-swagger</artifactId>
-            <version>${dropwizard-swagger.version}</version>
-        </dependency>-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -50,6 +45,11 @@
             <artifactId>testng</artifactId>
             <version>${testng.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.smoketurner</groupId>
+            <artifactId>dropwizard-swagger</artifactId>
+            <version>1.1.1-1</version>
         </dependency>
     </dependencies>
     <build>

@@ -1,12 +1,14 @@
 package rwatsh.demo.review.service.rest;
 
 import io.dropwizard.servlets.assets.ResourceNotFoundException;
+import io.swagger.annotations.*;
 import lombok.extern.java.Log;
 import rwatsh.demo.db.api.DBClient;
 import rwatsh.demo.db.api.DBException;
 import rwatsh.demo.db.impl.model.Product;
 import rwatsh.demo.db.impl.model.Review;
 import rwatsh.demo.db.impl.model.User;
+import rwatsh.demo.utils.EndpointUtils;
 import rwatsh.demo.utils.InternalErrorException;
 import rwatsh.demo.utils.JsonUtils;
 
@@ -25,7 +27,8 @@ import java.util.logging.Level;
  * @author rwatsh on 10/9/17.
  */
 @Log
-@Path("/products")
+@Path(EndpointUtils.ENDPOINT_ROOT + "/products")
+@Api(value = EndpointUtils.ENDPOINT_ROOT + "/products", description = "Product and Review resource operations")
 @Produces(MediaType.APPLICATION_JSON)
 public class ProductResource extends BaseResource<Product> {
     public ProductResource(DBClient dbClient) {
@@ -42,7 +45,9 @@ public class ProductResource extends BaseResource<Product> {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response create(String productJson) {
+    @ApiOperation(value = "Add a new product")
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Bad request") })
+    public Response create(@ApiParam(value = "product to be added", required = true)String productJson) {
         try {
             Product product = JsonUtils.convertJsonToObject(productJson, Product.class);
             List<Product> productList = new ArrayList<>();
@@ -68,7 +73,10 @@ public class ProductResource extends BaseResource<Product> {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("/{id}/reviews")
-    public Response addReview(@PathParam("id") String id, String reviewJson) {
+    @ApiOperation(value = "Add a new review to the product")
+    @ApiResponses(value = { @ApiResponse(code = 405, message = "Invalid input") })
+    public Response addReview(@ApiParam(value = "ID of product that needs to be fetched", required = true) @PathParam("id") String id,
+                              @ApiParam(value = "review to be added", required = true) String reviewJson) {
         String error = "";
         try {
             List<Product> products = productDAO.fetchById(new ArrayList<String>() {{
@@ -117,7 +125,13 @@ public class ProductResource extends BaseResource<Product> {
     @Override
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public List<Product> list(String filter) throws InternalErrorException {
+    @ApiOperation(
+            value = "Finds all products by filter",
+            notes = "products can be filtered by any attribute",
+            response = Product.class,
+            responseContainer = "List")
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid status value") })
+    public List<Product> list(@ApiParam(value = "A filter query string", defaultValue = "empty string") @QueryParam("filter") String filter) throws InternalErrorException {
         try {
             List<String> productIds = new ArrayList<>();
             List<Product> productList = productDAO.fetchById(productIds);
@@ -131,7 +145,14 @@ public class ProductResource extends BaseResource<Product> {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{id}")
-    public Product retrieve(@PathParam("id") String id) throws ResourceNotFoundException, InternalErrorException {
+    @ApiOperation(
+            value = "Find product by ID",
+            notes = "Returns a product for specified ID in the path",
+            response = Product.class)
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
+            @ApiResponse(code = 404, message = "Product not found") })
+    public Product retrieve(@ApiParam(value = "ID of product that needs to be fetched", required = true)
+                                @PathParam("id") String id) throws ResourceNotFoundException, InternalErrorException {
         try {
             List<Product> products = productDAO.fetchById(new ArrayList<String>() {{
                 add(id);
@@ -139,12 +160,12 @@ public class ProductResource extends BaseResource<Product> {
             if (products != null && !products.isEmpty()) {
                 return products.get(0);
             } else {
-                return null;
+                throw new NotFoundException("Product not found: " + id); // 404
             }
 
         } catch (Exception e) {
             log.log(Level.SEVERE, "Error in getting product by ID [" + id +  "]", e);
-            throw new BadRequestException(e);
+            throw new BadRequestException(e); // 400
         }
     }
 
@@ -159,12 +180,18 @@ public class ProductResource extends BaseResource<Product> {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{id}/reviews")
-    public List<Review> getAllReviews(@PathParam("id") String id) throws ResourceNotFoundException, InternalErrorException {
+    @ApiOperation(
+            value = "Finds all reviews for product specified by ID",
+            notes = "All reviews across all users for the product are returned",
+            response = Review.class,
+            responseContainer = "List")
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "Product not found") })
+    public List<Review> getAllReviews(@ApiParam(value = "ID of product that needs to be fetched", required = true)  @PathParam("id") String id) throws ResourceNotFoundException, InternalErrorException {
         Product product = retrieve(id);
         if (product != null) {
             return product.getReviews();
         }
-        throw new BadRequestException("product not found: " + id);
+        throw new NotFoundException("product not found: " + id);
     }
 
     /**
@@ -179,7 +206,14 @@ public class ProductResource extends BaseResource<Product> {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{id}/reviews/{userEmail}")
-    public List<Review> getReviewsByUser(@PathParam("id") String id, @PathParam("userEmail") String userEmail) throws ResourceNotFoundException, InternalErrorException, DBException {
+    @ApiOperation(
+            value = "Find review for given product by user email ID",
+            notes = "Returns one or more reviews for a product by a user",
+            response = Review.class,
+            responseContainer = "List")
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "Product not found") })
+    public List<Review> getReviewsByUser(@ApiParam(value = "ID of product that needs to be fetched", required = true) @PathParam("id") String id,
+                                         @ApiParam(value = "Email ID of the reviewer", required = true) @PathParam("userEmail") String userEmail) throws ResourceNotFoundException, InternalErrorException, DBException {
         Product product = retrieve(id);
         List<Review> resultList = new ArrayList<>();
         if (product != null) {
@@ -189,6 +223,8 @@ public class ProductResource extends BaseResource<Product> {
                     resultList.add(review);
                 }
             }
+        } else {
+            throw new NotFoundException("product not found: " + id);
         }
         return resultList;
     }
@@ -204,7 +240,12 @@ public class ProductResource extends BaseResource<Product> {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/reviews/{userEmail}")
-    public List<Review> getAllReviewsByUser(@PathParam("userEmail") String userEmail) throws ResourceNotFoundException, InternalErrorException, DBException {
+    @ApiOperation(
+            value = "Finds all reviews across all products by an user's email ID",
+            notes = "Returns one or more reviews across products by a user",
+            response = Review.class,
+            responseContainer = "List")
+    public List<Review> getAllReviewsByUser(@ApiParam(value = "Email ID of the reviewer", required = true) @PathParam("userEmail") String userEmail) throws ResourceNotFoundException, InternalErrorException, DBException {
         List<Product> products = list("");
         List<Review> resultList = new ArrayList<>();
         for (Product product: products) {
@@ -229,7 +270,13 @@ public class ProductResource extends BaseResource<Product> {
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{id}")
-    public Response delete(String id) throws ResourceNotFoundException, InternalErrorException {
+    @ApiOperation(
+            value = "Remove product by ID",
+            notes = "Returns deleted product for specified ID in the path",
+            response = Response.class)
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "Product not found") })
+    public Response delete(@ApiParam(value = "ID of product that needs to be deleted", required = true)
+                               @PathParam("id") String id) throws ResourceNotFoundException, InternalErrorException {
         try {
             productDAO.deleteById(id);
             return Response.ok().build();

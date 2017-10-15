@@ -3,6 +3,9 @@ database:
   port: 27017
   dbName: review_engine_db
 
+swagger:
+  resourcePackage: rwatsh.demo.review.service.rest
+
 server:
   type: simple
   applicationContextPath: /
